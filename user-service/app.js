@@ -15,7 +15,8 @@ const app = express();
 
 // --- MIDDLEWARES ---
 
-app.enable("trust proxy");
+// app.enable("trust proxy");
+app.set("trust proxy", "loopback");
 app.use(compression());
 app.use(helmet());
 
