@@ -10,7 +10,7 @@ const morgan = require("morgan");
 const AppError = require("./utils/appError");
 const logger = require("./utils/logger");
 const globalErrorHandler = require("./controllers/error.controller"); // Vẫn comment out
-
+const apiRouter = require('./routes/index');
 const app = express();
 
 // --- MIDDLEWARES ---
@@ -43,7 +43,8 @@ if (process.env.NODE_ENV === "production") {
 } else {
   app.use(morgan("dev", { stream: logger.stream }));
 }
-
+//7. Body parsing 
+app.use(express.json({ limit: process.env.BODY_LIMIT || '10kb' }));
 // --- ROUTES ---
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "UP", timestamp: new Date().toISOString() });
@@ -55,8 +56,9 @@ app.get("/", (req, res) => {
   });
   res
     .status(200)
-    .send("hello with simplified cors and alternative 404 handling");
+    .send("hello, Đây là khởi đầu cho 1 siêu ứng dụngdụng");
 });
+app.use('/api/v1', apiRouter);
 
 // --- ERROR HANDLING ---
 
@@ -91,7 +93,7 @@ app.use((err, req, res, next) => {
     message: "Internal Server Error (Fallback)",
   });
 });
-app.use(globalErrorHandler); // Vẫn comment out
+app.use(globalErrorHandler);
 
 // Export app
 module.exports = app;

@@ -22,12 +22,14 @@ const onListening = async () => {
 
   try {
     await db.testConnection(); // Kiểm tra kết nối cơ sở dữ liệu
-    logger.info("Database connection successful");
+    logger.info("✅ Database connection successful");
   } catch (error) {
-    logger.error("Error testing connection to the database:");
-    process.kill(process.pid, "SIGTERM");
+    logger.error("❌ Error testing connection to the database:");
+    logger.error(error.message); // Log lỗi nhưng không dừng server
+    logger.warn("⚠️ Server is running without a database connection.");
   }
 };
+
 const server = http.createServer(app);
 
 server.listen(PORT, () => {
@@ -58,21 +60,14 @@ server.on("error", (error) => {
 
 server.on("listening", onListening);
 
-// Lưu ý: Các handler `uncaughtException`, `unhandledRejection`, `SIGTERM`
-// rất quan trọng cho production, nhưng tạm thời bỏ qua để giữ sự đơn giản.
-// Chúng ta sẽ thêm lại khi xây dựng phiên bản hoàn chỉnh.
 // --- Graceful Shutdown Logic ---
-// Sửa gracefulShutdown để đóng pool DB
 const gracefulShutdown = (signal) => {
   logger.warn(`👋 Received ${signal}. Starting graceful shutdown...`);
   server.close(async () => {
-    // <<< THÊM ASYNC
     logger.info("✅ HTTP server closed.");
-    // Đóng kết nối DB Pool
     try {
       if (db.pool) {
-        // Kiểm tra pool tồn tại
-        await db.pool.end(); // <<< BỎ COMMENT VÀ SỬ DỤNG pool.end()
+        await db.pool.end();
         logger.info("✅ Database connection pool closed.");
       }
     } catch (err) {
@@ -83,7 +78,6 @@ const gracefulShutdown = (signal) => {
     }
   });
 
-  // Force shutdown after timeout (giữ nguyên)
   setTimeout(() => {
     logger.error(
       "❌ Could not close connections in time, forcefully shutting down."
@@ -92,14 +86,15 @@ const gracefulShutdown = (signal) => {
   }, 15000);
 };
 
-// --- Process Event Handlers --- (giữ nguyên)
+// --- Process Event Handlers ---
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 process.on("unhandledRejection", (reason, promise) => {
-  /* ... dùng logger ... */
+  logger.error("Unhandled Rejection at:", promise, "reason:", reason);
 });
 process.on("uncaughtException", (error) => {
-  /* ... dùng logger và gracefulShutdown ... */
+  logger.error("Uncaught Exception thrown:", error);
+  gracefulShutdown("uncaughtException");
 });
 
 logger.info(`Server process starting with PID: ${process.pid}`);
